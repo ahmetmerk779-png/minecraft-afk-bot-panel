@@ -1,7 +1,6 @@
 {
   "name": "minecraft-afk-bot-panel",
   "version": "1.0.0",
-  "description": "Minecraft AFK Bot Panel - Çoklu bot yönetimi, sunucu konfigürasyonu ve istatistikler",
   "main": "server.js",
   "engines": {
     "node": "20.x"
