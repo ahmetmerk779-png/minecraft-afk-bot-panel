@@ -12,7 +12,23 @@ const dbPath = path.join(dataDir, 'bots.db');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new Database(dbPath);
-const botManager = new BotManager(db);
+const recentLogs = [];
+
+const addLog = (message) => {
+  const entry = {
+    id: Date.now() + Math.random(),
+    message,
+    time: new Date().toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
+  };
+  recentLogs.unshift(entry);
+  if (recentLogs.length > 30) recentLogs.pop();
+};
+
+const botManager = new BotManager(db, addLog);
 
 const ensureSchema = () => {
   db.exec(`
@@ -43,19 +59,35 @@ ensureSchema();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+function safeParseScoreboard(value) {
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 app.get('/api/summary', (req, res) => {
   const totalBots = db.prepare('SELECT COUNT(*) AS total FROM bots').get().total;
   const onlineBots = db.prepare('SELECT COUNT(*) AS total FROM bots WHERE online = 1').get().total;
+  const offlineBots = totalBots - onlineBots;
   const totalHours = db.prepare('SELECT COALESCE(SUM(hours_played), 0) AS total FROM bots').get().total;
   const uniqueServers = db.prepare('SELECT COUNT(DISTINCT ip) AS total FROM bots').get().total;
   const totalConnections = db.prepare('SELECT COALESCE(SUM(total_bots), 0) AS total FROM bots').get().total;
+  const totalGroups = db.prepare('SELECT COUNT(DISTINCT server_group) AS total FROM bots').get().total;
+  const avgHours = totalBots ? totalHours / totalBots : 0;
 
   res.json({
     totalBots,
     onlineBots,
+    offlineBots,
     totalHours,
     uniqueServers,
     totalConnections,
+    totalGroups,
+    avgHours,
+    uptime: process.uptime(),
   });
 });
 
@@ -64,12 +96,30 @@ app.get('/api/bots', (req, res) => {
   const bots = rows.map((bot) => ({
     ...bot,
     online: !!bot.online,
-    scoreboard: JSON.parse(bot.scoreboard || '[]'),
     total_bots: Number(bot.total_bots || 1),
     hours_played: Number(bot.hours_played || 0),
+    scoreboard: safeParseScoreboard(bot.scoreboard),
   }));
 
   res.json({ bots });
+});
+
+app.get('/api/bots/groups', (req, res) => {
+  const groups = db.prepare(`
+    SELECT server_group AS name,
+           COUNT(*) AS total,
+           SUM(CASE WHEN online = 1 THEN 1 ELSE 0 END) AS online,
+           COALESCE(AVG(hours_played), 0) AS avgHours
+    FROM bots
+    GROUP BY server_group
+    ORDER BY total DESC
+  `).all();
+
+  res.json({ groups });
+});
+
+app.get('/api/logs', (req, res) => {
+  res.json({ logs: recentLogs });
 });
 
 app.post('/api/bots', (req, res) => {
@@ -93,12 +143,12 @@ app.post('/api/bots', (req, res) => {
           { label: 'Kilit', value: '0' },
           { label: 'Can', value: '20/20' },
           { label: 'Para', value: '0' },
-          { label: 'İsim', value: 'AFK' }
+          { label: 'İsim', value: 'AFK' },
         ]),
   };
 
   if (!bot.name || !bot.ip) {
-    return res.status(400).json({ message: 'Bot adı ve IP zorunludur.' });
+    return res.status(400).json({ message: 'Bot adı ve IP alanı zorunludur.' });
   }
 
   const result = db.prepare(`
@@ -112,9 +162,11 @@ app.post('/api/bots', (req, res) => {
   `).run(bot);
 
   const created = db.prepare('SELECT * FROM bots WHERE id = ?').get(result.lastInsertRowid);
-  created.scoreboard = JSON.parse(created.scoreboard || '[]');
+  created.scoreboard = safeParseScoreboard(created.scoreboard);
 
+  addLog(`Bot eklendi: ${created.name} (${created.ip})`);
   botManager.startBot(created);
+
   res.status(201).json({ bot: created });
 });
 
@@ -131,6 +183,7 @@ app.patch('/api/bots/:id', (req, res) => {
     ...row,
     ...payload,
     alt_server: String(payload.alt_server ?? payload.altServer ?? row.alt_server ?? '').trim(),
+    login: String(payload.login ?? row.login ?? '').trim(),
     password: String(payload.password ?? row.password ?? '').trim(),
     total_bots: Number(payload.total_bots ?? payload.totalBots ?? row.total_bots ?? 1),
     hours_played: Number(payload.hours_played ?? payload.hoursPlayed ?? row.hours_played ?? 0),
@@ -165,10 +218,39 @@ app.patch('/api/bots/:id', (req, res) => {
   `).run({ ...updates, id });
 
   const updated = db.prepare('SELECT * FROM bots WHERE id = ?').get(id);
-  updated.scoreboard = JSON.parse(updated.scoreboard || '[]');
+  updated.scoreboard = safeParseScoreboard(updated.scoreboard);
 
+  addLog(`Bot güncellendi: ${updated.name}`);
   botManager.startBot(updated);
+
   res.json({ bot: updated });
+});
+
+app.post('/api/bots/:id/reconnect', (req, res) => {
+  const id = Number(req.params.id);
+  const bot = db.prepare('SELECT * FROM bots WHERE id = ?').get(id);
+
+  if (!bot) {
+    return res.status(404).json({ message: 'Bot bulunamadı.' });
+  }
+
+  botManager.startBot(bot);
+  addLog(`Bot yeniden bağlanıyor: ${bot.name}`);
+  res.json({ success: true, bot });
+});
+
+app.post('/api/bots/:id/restart', (req, res) => {
+  const id = Number(req.params.id);
+  const bot = db.prepare('SELECT * FROM bots WHERE id = ?').get(id);
+
+  if (!bot) {
+    return res.status(404).json({ message: 'Bot bulunamadı.' });
+  }
+
+  botManager.stopBot(id);
+  setTimeout(() => botManager.startBot(bot), 500);
+  addLog(`Bot yeniden başlatıldı: ${bot.name}`);
+  res.json({ success: true, bot });
 });
 
 app.delete('/api/bots/:id', (req, res) => {
@@ -181,7 +263,19 @@ app.delete('/api/bots/:id', (req, res) => {
 
   db.prepare('DELETE FROM bots WHERE id = ?').run(id);
   botManager.stopBot(id);
+  addLog(`Bot silindi: ${row.name}`);
+
   res.json({ success: true });
+});
+
+app.delete('/api/bots/offline', (req, res) => {
+  const rows = db.prepare('SELECT * FROM bots WHERE online = 0').all();
+  rows.forEach((bot) => {
+    db.prepare('DELETE FROM bots WHERE id = ?').run(bot.id);
+    botManager.stopBot(bot.id);
+  });
+  addLog(`${rows.length} offline bot temizlendi.`);
+  res.json({ success: true, removed: rows.length });
 });
 
 app.get('/health', (req, res) => {
@@ -193,6 +287,7 @@ app.use((req, res) => {
 });
 
 botManager.startAll();
+addLog('Minecraft AFK bot panel başlatıldı.');
 
 app.listen(PORT, () => {
   console.log(`Minecraft AFK Bot Panel çalışıyor: http://localhost:${PORT}`);

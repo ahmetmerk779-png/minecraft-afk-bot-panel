@@ -1,11 +1,16 @@
 const mc = require('minecraft-protocol');
 
 class BotManager {
-  constructor(db) {
+  constructor(db, logFn = () => {}) {
     this.db = db;
+    this.logFn = logFn;
     this.clients = new Map();
     this.tick = null;
     this.startTicker();
+  }
+
+  addLog(message) {
+    if (typeof this.logFn === 'function') this.logFn(message);
   }
 
   startTicker() {
@@ -51,6 +56,7 @@ class BotManager {
       client.on('connect', () => {
         this.db.prepare('UPDATE bots SET online = 1, last_seen = ? WHERE id = ?')
           .run(new Date().toISOString(), bot.id);
+        this.addLog(`Bot bağlandı: ${bot.name} (${bot.ip})`);
       });
 
       client.on('login', () => {
@@ -61,17 +67,18 @@ class BotManager {
       client.on('error', (err) => {
         this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
           .run(new Date().toISOString(), bot.id);
-        console.error(`[BOT:${bot.name}] Hata: ${err.message || err}`);
+        this.addLog(`Bot hatası: ${bot.name} - ${err.message || err}`);
       });
 
       client.on('end', () => {
         this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
           .run(new Date().toISOString(), bot.id);
+        this.addLog(`Bot bağlantısı kapandı: ${bot.name}`);
       });
 
       this.clients.set(bot.id, client);
     } catch (error) {
-      console.error(`[BOT:${bot.name}] Başlatılamadı: ${error.message || error}`);
+      this.addLog(`Bot başlatılamadı: ${bot.name} - ${error.message || error}`);
       this.db.prepare('UPDATE bots SET online = 0 WHERE id = ?').run(bot.id);
     }
   }

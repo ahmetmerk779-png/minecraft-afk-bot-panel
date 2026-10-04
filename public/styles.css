@@ -1,546 +1,368 @@
-:root {
-  --bg: #06131d;
-  --bg-2: #0d1e2b;
-  --panel: rgba(18, 35, 50, 0.92);
-  --panel-alt: rgba(22, 46, 66, 0.9);
-  --line: rgba(157, 192, 220, 0.18);
-  --text: #edf7ff;
-  --muted: #9db4c9;
-  --primary: #5fe2ff;
-  --primary-2: #7ef7d3;
-  --success: #4be39d;
-  --danger: #ff6b7e;
-  --warn: #f7d36b;
-  --shadow: 0 20px 46px rgba(3, 12, 19, 0.38);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html, body {
-  margin: 0;
-  min-height: 100%;
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
-  color: var(--text);
-  font-family: Inter, Arial, sans-serif;
-}
-
-button, input, select {
-  font: inherit;
-}
-
-.app-shell {
-  display: flex;
-  min-height: 100vh;
-}
-
-.sidebar {
-  width: 290px;
-  background: rgba(9, 22, 32, 0.97);
-  border-right: 1px solid var(--line);
-  padding: 26px 20px;
-}
-
-.brand-box {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 30px;
-}
-
-.brand-mark {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 1.5rem;
-  color: #031b2a;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-}
-
-h1, h2, h3 {
-  margin: 0;
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.primary-button,
-.secondary-button,
-.close-btn,
-.action-button {
-  border-radius: 12px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
-}
-
-.primary-button:hover,
-.secondary-button:hover,
-.close-btn:hover,
-.action-button:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-}
-
-.primary-button {
-  width: 100%;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  color: #021a24;
-  font-weight: 800;
-}
-
-.sidebar-stats {
-  display: grid;
-  gap: 14px;
-  margin-top: 26px;
-}
-
-.mini-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.label {
-  display: block;
-  color: var(--muted);
-  font-size: 0.74rem;
-  margin-bottom: 8px;
-}
-
-.mini-card strong {
-  font-size: 1.6rem;
-}
-
-.filters-box {
-  margin-top: 24px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.filters-head {
-  color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.filters-box input,
-.filters-box select,
-input,
-select {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.02);
-  color: var(--text);
-  padding: 10px 12px;
-}
-
-.main-panel {
-  flex: 1;
-  padding: 28px;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 9px 14px;
-  background: rgba(255,255,255,0.03);
-  color: var(--muted);
-  border: 1px solid var(--line);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(170px, 1fr));
-  gap: 18px;
-  margin: 12px 0 28px;
-}
-
-.stat-tile {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 18px 20px;
-  box-shadow: var(--shadow);
-}
-
-.stat-tile span {
-  display: block;
-  color: var(--muted);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  font-size: 0.7rem;
-}
-
-.stat-tile strong {
-  display: block;
-  margin-top: 12px;
-  font-size: 1.9rem;
-}
-
-.panel-box,
-.logs-panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 18px 18px 8px;
-  box-shadow: var(--shadow);
-}
-
-.logs-panel {
-  margin-top: 24px;
-  padding-bottom: 18px;
-}
-
-.panel-header {
-  margin-bottom: 12px;
-}
-
-.log-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.log-list li {
-  display: flex;
-  gap: 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255,255,255,0.02);
-  color: var(--muted);
-}
-
-.log-time {
-  color: var(--primary);
-  font-weight: 700;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.table-wrap table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 12px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  text-align: left;
-  vertical-align: top;
-}
-
-th {
-  font-size: 0.72rem;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-tbody tr:hover {
-  background: rgba(255,255,255,0.02);
-}
-
-.table-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.status-tag {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.status-tag.online {
-  background: rgba(75, 227, 157, 0.12);
-  color: var(--success);
-}
-
-.status-tag.offline {
-  background: rgba(255, 107, 126, 0.12);
-  color: var(--danger);
-}
-
-.status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.bot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 18px;
-  margin-top: 28px;
-}
-
-.bot-card {
-  background: var(--panel-alt);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: var(--shadow);
-}
-
-.bot-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.bot-name {
-  font-size: 1.12rem;
-  font-weight: 700;
-}
-
-.bot-subtitle {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin-top: 4px;
-}
-
-.bot-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.meta-box {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.04);
-  border-radius: 12px;
-  padding: 10px 12px;
-}
-
-.meta-box span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.7rem;
-  margin-bottom: 6px;
-}
-
-.meta-box strong {
-  font-size: 0.96rem;
-}
-
-.radar-box,
-.scoreboard {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.04);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.radar-box {
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-.radar {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 8px auto 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(95, 226, 255, 0.25), rgba(15, 29, 38, 0.85) 60%, rgba(10, 17, 23, 1) 100%);
-  border: 1px solid rgba(95, 226, 255, 0.22);
-}
-
-.radar::before, .radar::after {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.radar::after {
-  inset: 0;
-  border-left: 1px solid rgba(255,255,255,0.08);
-  border-right: 1px solid rgba(255,255,255,0.08);
-}
-
-.radar-dot {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--success);
-  box-shadow: 0 0 12px rgba(75, 227, 157, 0.8);
-  transform: translate(-50%, -50%);
-}
-
-.scoreboard-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.scoreboard-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 0.84rem;
-}
-
-.scoreboard-item strong {
-  color: var(--text);
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(3, 10, 15, 0.72);
-  display: grid;
-  place-items: center;
-  z-index: 50;
-}
-
-.modal.hidden {
-  display: none;
-}
-
-.modal-card {
-  width: min(760px, calc(100vw - 24px));
-  background: rgba(7, 18, 26, 0.96);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: var(--shadow);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
-
-.close-btn {
-  width: 36px;
-  height: 36px;
-  background: rgba(255,255,255,0.04);
-  color: var(--text);
-  border-color: var(--line);
-  font-size: 1.5rem;
-}
-
-.fields-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 14px;
-}
-
-label {
-  display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.form-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 22px;
-}
-
-.secondary-button {
-  background: rgba(255,255,255,0.04);
-  border-color: var(--line);
-  color: var(--text);
-  padding: 10px 16px;
-}
-
-.action-button {
-  background: rgba(255,255,255,0.04);
-  border-color: var(--line);
-  color: var(--text);
-  padding: 8px 10px;
-}
-
-.action-button.delete {
-  color: var(--danger);
-}
-
-@media (max-width: 920px) {
-  .app-shell {
-    display: block;
+const state = {
+  summary: null,
+  bots: [],
+  logs: [],
+  groups: [],
+  filters: {
+    search: '',
+    group: 'all',
+    status: 'all',
+  },
+};
+
+const refs = {
+  totalBots: document.getElementById('totalBots'),
+  onlineBots: document.getElementById('onlineBots'),
+  totalHours: document.getElementById('totalHours'),
+  serverCount: document.getElementById('serverCount'),
+  summaryGrid: document.getElementById('summaryGrid'),
+  botTableBody: document.getElementById('botTableBody'),
+  botGrid: document.getElementById('botGrid'),
+  openFormBtn: document.getElementById('openFormBtn'),
+  closeModalBtn: document.getElementById('closeModalBtn'),
+  cancelBtn: document.getElementById('cancelBtn'),
+  botModal: document.getElementById('botModal'),
+  botForm: document.getElementById('botForm'),
+  groupFilter: document.getElementById('groupFilter'),
+  statusFilter: document.getElementById('statusFilter'),
+  searchInput: document.getElementById('searchInput'),
+  logList: document.getElementById('logList'),
+  groupOverview: document.getElementById('groupOverview'),
+  offlineCleanupBtn: document.getElementById('offlineCleanupBtn'),
+};
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'İşlem başarısız.');
   }
 
-  .sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
-  }
+  return response.json();
 }
 
-@media (max-width: 640px) {
-  .main-panel {
-    padding: 20px 14px 28px;
-  }
-
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .fields-grid,
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+function formatHours(value) {
+  const num = Number(value || 0);
+  return `${num.toFixed(1)} saat`;
 }
+
+function getFilteredBots() {
+  return state.bots.filter((bot) => {
+    const matchesSearch =
+      !state.filters.search ||
+      bot.name.toLowerCase().includes(state.filters.search.toLowerCase()) ||
+      bot.ip.toLowerCase().includes(state.filters.search.toLowerCase()) ||
+      (bot.server_group || '').toLowerCase().includes(state.filters.search.toLowerCase());
+
+    const matchesGroup = state.filters.group === 'all' || (bot.server_group || 'Genel') === state.filters.group;
+    const matchesStatus = state.filters.status === 'all' || (state.filters.status === 'online' ? !!bot.online : !bot.online);
+
+    return matchesSearch && matchesGroup && matchesStatus;
+  });
+}
+
+function renderSummary(summary) {
+  refs.totalBots.textContent = summary.totalBots;
+  refs.onlineBots.textContent = summary.onlineBots;
+  refs.totalHours.textContent = `${Number(summary.totalHours || 0).toFixed(1)}h`;
+  refs.serverCount.textContent = summary.uniqueServers;
+
+  refs.summaryGrid.innerHTML = `
+    <div class="stat-tile">
+      <span>Toplam Bot</span>
+      <strong>${summary.totalBots}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Çevrimiçi</span>
+      <strong>${summary.onlineBots}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Offline</span>
+      <strong>${summary.offlineBots || 0}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Ortalama Saat</span>
+      <strong>${Number(summary.avgHours || 0).toFixed(1)}</strong>
+    </div>
+  `;
+}
+
+function renderGroupOptions() {
+  const groups = [...new Set(state.bots.map((bot) => bot.server_group || 'Genel'))];
+  refs.groupFilter.innerHTML = '<option value="all">Tüm gruplar</option>' + groups.map((group) => `<option value="${group}">${group}</option>`).join('');
+  refs.groupFilter.value = state.filters.group;
+}
+
+function renderGroupOverview() {
+  if (!state.groups.length) {
+    refs.groupOverview.innerHTML = '<div class="group-pill neutral">Henüz grup verisi yok.</div>';
+    return;
+  }
+
+  refs.groupOverview.innerHTML = state.groups.map((group) => `
+    <div class="group-pill">
+      <span>${group.name || 'Genel'}</span>
+      <strong>${group.total}</strong>
+      <small>${group.online} online</small>
+    </div>
+  `).join('');
+}
+
+function renderLogs(logs) {
+  refs.logList.innerHTML = (logs || []).slice(0, 12).map((log) => `
+    <li><span class="log-time">${log.time}</span> <span>${log.message}</span></li>
+  `).join('');
+}
+
+function renderBotsTable(bots) {
+  refs.botTableBody.innerHTML = bots.length ? bots.map((bot) => `
+    <tr>
+      <td>${bot.name}</td>
+      <td>${bot.ip}</td>
+      <td>${bot.version || '1.20.4'}</td>
+      <td>${bot.alt_server || bot.altServer || '-'}</td>
+      <td>${bot.server_group || 'Genel'}</td>
+      <td>${bot.login || '-'}</td>
+      <td>${bot.total_bots || bot.totalBots || 1}</td>
+      <td>${formatHours(bot.hours_played || bot.hoursPlayed || 0)}</td>
+      <td>
+        <span class="status-tag ${bot.online ? 'online' : 'offline'}">
+          <span class="status-dot"></span>
+          ${bot.online ? 'Çevrimiçi' : 'Offline'}
+        </span>
+      </td>
+      <td>
+        <div class="table-actions">
+          <button class="action-button" data-edit-id="${bot.id}">Düzenle</button>
+          <button class="action-button" data-reconnect-id="${bot.id}">Yeniden</button>
+          <button class="action-button" data-restart-id="${bot.id}">Başlat</button>
+          <button class="action-button delete" data-delete-id="${bot.id}">Sil</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') : `
+    <tr><td colspan="10">Sonuç bulunamadı.</td></tr>
+  `;
+
+  document.querySelectorAll('[data-delete-id]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = Number(button.dataset.deleteId);
+      await fetchJson(`/api/bots/${id}`, { method: 'DELETE' });
+      await loadDashboard();
+    });
+  });
+
+  document.querySelectorAll('[data-edit-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.editId);
+      const bot = state.bots.find((item) => item.id === id);
+      if (!bot) return;
+      fillForm(bot);
+      openDialog();
+    });
+  });
+
+  document.querySelectorAll('[data-reconnect-id]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = Number(button.dataset.reconnectId);
+      await fetchJson(`/api/bots/${id}/reconnect`, { method: 'POST' });
+      await loadDashboard();
+    });
+  });
+
+  document.querySelectorAll('[data-restart-id]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = Number(button.dataset.restartId);
+      await fetchJson(`/api/bots/${id}/restart`, { method: 'POST' });
+      await loadDashboard();
+    });
+  });
+}
+
+function renderBotCards(bots) {
+  refs.botGrid.innerHTML = bots.map((bot) => {
+    const scoreboard = Array.isArray(bot.scoreboard) ? bot.scoreboard : [];
+    const radarX = Number(bot.radar_x ?? bot.radarX ?? 0);
+    const radarZ = Number(bot.radar_z ?? bot.radarZ ?? 0);
+
+    return `
+      <article class="bot-card">
+        <div class="bot-header">
+          <div>
+            <div class="bot-name">${bot.name}</div>
+            <div class="bot-subtitle">${bot.server_group || 'Genel'} • ${bot.alt_server || bot.altServer || 'Alt sunucu yok'}</div>
+          </div>
+          <span class="status-tag ${bot.online ? 'online' : 'offline'}">
+            <span class="status-dot"></span>
+            ${bot.online ? 'Online' : 'Offline'}
+          </span>
+        </div>
+
+        <div class="bot-meta">
+          <div class="meta-box">
+            <span>Sunucu</span>
+            <strong>${bot.ip}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Versiyon</span>
+            <strong>${bot.version || '1.20.4'}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Login</span>
+            <strong>${bot.login || '-'}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Oynama</span>
+            <strong>${formatHours(bot.hours_played || bot.hoursPlayed || 0)}</strong>
+          </div>
+        </div>
+
+        <div class="radar-box">
+          <div class="section-title">Radar</div>
+          <div class="radar">
+            <span class="radar-dot" style="left: ${Math.max(10, Math.min(90, 50 + radarX / 3))}%; top: ${Math.max(10, Math.min(90, 50 + radarZ / 3))}%"></span>
+          </div>
+        </div>
+
+        <div class="scoreboard">
+          <div class="section-title">Scoreboard</div>
+          <div class="scoreboard-list">
+            ${(scoreboard.length ? scoreboard : [
+              { label: 'Kilit', value: '0' },
+              { label: 'Can', value: '20/20' },
+              { label: 'Para', value: '0' }
+            ]).map((item) => `
+              <div class="scoreboard-item">
+                <span>${item.label}</span>
+                <strong>${item.value}</strong>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+async function loadDashboard() {
+  const [summaryRes, botsRes, logsRes, groupsRes] = await Promise.all([
+    fetchJson('/api/summary'),
+    fetchJson('/api/bots'),
+    fetchJson('/api/logs'),
+    fetchJson('/api/bots/groups'),
+  ]);
+
+  state.summary = summaryRes;
+  state.bots = botsRes.bots || [];
+  state.logs = logsRes.logs || [];
+  state.groups = groupsRes.groups || [];
+
+  renderSummary(state.summary);
+  renderGroupOptions();
+  renderGroupOverview();
+  renderLogs(state.logs);
+
+  const filteredBots = getFilteredBots();
+  renderBotsTable(filteredBots);
+  renderBotCards(filteredBots);
+}
+
+function fillForm(bot) {
+  refs.botForm.reset();
+  refs.botForm.elements.id.value = bot.id || '';
+  refs.botForm.elements.name.value = bot.name || '';
+  refs.botForm.elements.ip.value = bot.ip || '';
+  refs.botForm.elements.version.value = bot.version || '1.20.4';
+  refs.botForm.elements.alt_server.value = bot.alt_server || '';
+  refs.botForm.elements.server_group.value = bot.server_group || 'Genel';
+  refs.botForm.elements.login.value = bot.login || '';
+  refs.botForm.elements.password.value = bot.password || '';
+  refs.botForm.elements.total_bots.value = bot.total_bots || 1;
+  refs.botForm.elements.hours_played.value = bot.hours_played || 0;
+}
+
+function openDialog() {
+  refs.botModal.classList.remove('hidden');
+}
+
+function closeDialog() {
+  refs.botModal.classList.add('hidden');
+  refs.botForm.reset();
+  refs.botForm.elements.version.value = '1.20.4';
+  refs.botForm.elements.total_bots.value = 1;
+  refs.botForm.elements.hours_played.value = 0;
+}
+
+refs.openFormBtn.addEventListener('click', () => {
+  refs.botForm.reset();
+  refs.botForm.elements.version.value = '1.20.4';
+  refs.botForm.elements.total_bots.value = 1;
+  refs.botForm.elements.hours_played.value = 0;
+  refs.botForm.elements.id.value = '';
+  openDialog();
+});
+
+refs.closeModalBtn.addEventListener('click', closeDialog);
+refs.cancelBtn.addEventListener('click', closeDialog);
+refs.botModal.addEventListener('click', (event) => {
+  if (event.target === refs.botModal) closeDialog();
+});
+
+refs.searchInput.addEventListener('input', (e) => {
+  state.filters.search = e.target.value.trim();
+  const filteredBots = getFilteredBots();
+  renderBotsTable(filteredBots);
+  renderBotCards(filteredBots);
+});
+
+refs.groupFilter.addEventListener('change', (e) => {
+  state.filters.group = e.target.value;
+  const filteredBots = getFilteredBots();
+  renderBotsTable(filteredBots);
+  renderBotCards(filteredBots);
+});
+
+refs.statusFilter.addEventListener('change', (e) => {
+  state.filters.status = e.target.value;
+  const filteredBots = getFilteredBots();
+  renderBotsTable(filteredBots);
+  renderBotCards(filteredBots);
+});
+
+refs.offlineCleanupBtn.addEventListener('click', async () => {
+  await fetchJson('/api/bots/offline', { method: 'DELETE' });
+  await loadDashboard();
+});
+
+refs.botForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(refs.botForm);
+  const payload = Object.fromEntries(formData.entries());
+
+  const id = payload.id ? Number(payload.id) : null;
+  delete payload.id;
+  payload.total_bots = Number(payload.total_bots || 1);
+  payload.hours_played = Number(payload.hours_played || 0);
+
+  if (id) {
+    await fetchJson(`/api/bots/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  } else {
+    await fetchJson('/api/bots', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  closeDialog();
+  await loadDashboard();
+});
+
+loadDashboard();
+setInterval(loadDashboard, 30000);
