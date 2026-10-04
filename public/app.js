@@ -69,6 +69,13 @@
           <div id="groupOverview" class="group-overview"></div>
         </section>
 
+        <section class="panel-box compact-panel">
+          <div class="panel-header">
+            <h3>Otomasyon Durumu</h3>
+          </div>
+          <div id="automationStatus" class="automation-status"></div>
+        </section>
+
         <section class="panel-box">
           <div class="panel-header">
             <h3>Bot Listesi</h3>
@@ -150,6 +157,14 @@
             <label>
               Oynama Saati
               <input name="hours_played" type="number" min="0" step="0.1" value="0" />
+            </label>
+            <label class="checkbox-row">
+              <span>Otomatik yeniden bağlan</span>
+              <input name="auto_reconnect" type="checkbox" checked />
+            </label>
+            <label>
+              Yeniden bağlanma aralığı (sn)
+              <input name="retry_interval" type="number" min="5" step="5" value="15" />
             </label>
           </div>
 

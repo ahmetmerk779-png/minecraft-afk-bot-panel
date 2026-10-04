@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const dataDir = path.join(__dirname, 'data');
 const dbPath = path.join(dataDir, 'bots.db');
+const startupTime = Date.now();
 
 fs.mkdirSync(dataDir, { recursive: true });
 
@@ -30,6 +31,25 @@ const addLog = (message) => {
 
 const botManager = new BotManager(db, addLog);
 
+function coerceBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  const str = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(str)) return true;
+  if (['0', 'false', 'no', 'off'].includes(str)) return false;
+  return fallback;
+}
+
+function safeParseScoreboard(value) {
+  try {
+    const parsed = JSON.parse(value || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 const ensureSchema = () => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS bots (
@@ -43,6 +63,12 @@ const ensureSchema = () => {
       total_bots INTEGER DEFAULT 1,
       hours_played REAL DEFAULT 0,
       online INTEGER DEFAULT 0,
+      enabled INTEGER DEFAULT 1,
+      auto_reconnect INTEGER DEFAULT 1,
+      retry_interval INTEGER DEFAULT 15,
+      retry_count INTEGER DEFAULT 0,
+      last_heartbeat TEXT DEFAULT '',
+      last_error TEXT DEFAULT '',
       last_seen TEXT DEFAULT '',
       radar_x INTEGER DEFAULT 0,
       radar_y INTEGER DEFAULT 0,
@@ -59,15 +85,6 @@ ensureSchema();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-function safeParseScoreboard(value) {
-  try {
-    const parsed = JSON.parse(value || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 app.get('/api/summary', (req, res) => {
   const totalBots = db.prepare('SELECT COUNT(*) AS total FROM bots').get().total;
   const onlineBots = db.prepare('SELECT COUNT(*) AS total FROM bots WHERE online = 1').get().total;
@@ -77,6 +94,8 @@ app.get('/api/summary', (req, res) => {
   const totalConnections = db.prepare('SELECT COALESCE(SUM(total_bots), 0) AS total FROM bots').get().total;
   const totalGroups = db.prepare('SELECT COUNT(DISTINCT server_group) AS total FROM bots').get().total;
   const avgHours = totalBots ? totalHours / totalBots : 0;
+  const autoReconnectCount = db.prepare('SELECT COUNT(*) AS total FROM bots WHERE auto_reconnect = 1').get().total;
+  const reconnectingCount = botManager.getReconnectStats().count;
 
   res.json({
     totalBots,
@@ -87,7 +106,19 @@ app.get('/api/summary', (req, res) => {
     totalConnections,
     totalGroups,
     avgHours,
+    autoReconnectCount,
+    reconnectingCount,
     uptime: process.uptime(),
+  });
+});
+
+app.get('/api/system', (req, res) => {
+  res.json({
+    uptime: process.uptime(),
+    startedAt: new Date(startupTime).toISOString(),
+    now: new Date().toISOString(),
+    reconnectingCount: botManager.getReconnectStats().count,
+    activeBots: botManager.getClientsCount(),
   });
 });
 
@@ -96,8 +127,12 @@ app.get('/api/bots', (req, res) => {
   const bots = rows.map((bot) => ({
     ...bot,
     online: !!bot.online,
+    enabled: coerceBoolean(bot.enabled, true),
+    auto_reconnect: coerceBoolean(bot.auto_reconnect, true),
     total_bots: Number(bot.total_bots || 1),
     hours_played: Number(bot.hours_played || 0),
+    retry_interval: Number(bot.retry_interval || 15),
+    retry_count: Number(bot.retry_count || 0),
     scoreboard: safeParseScoreboard(bot.scoreboard),
   }));
 
@@ -137,6 +172,11 @@ app.post('/api/bots', (req, res) => {
     radar_y: Number(payload.radar_y || payload.radarY || 0),
     radar_z: Number(payload.radar_z || payload.radarZ || 0),
     server_group: String(payload.server_group || payload.serverGroup || 'Genel').trim(),
+    enabled: Number(coerceBoolean(payload.enabled, true) ? 1 : 0),
+    auto_reconnect: Number(coerceBoolean(payload.auto_reconnect, true) ? 1 : 0),
+    retry_interval: Number(payload.retry_interval || payload.retryInterval || 15),
+    retry_count: 0,
+    last_error: '',
     scoreboard: Array.isArray(payload.scoreboard)
       ? JSON.stringify(payload.scoreboard)
       : JSON.stringify([
@@ -154,18 +194,24 @@ app.post('/api/bots', (req, res) => {
   const result = db.prepare(`
     INSERT INTO bots (
       name, ip, version, alt_server, login, password, total_bots, hours_played,
-      radar_x, radar_y, radar_z, scoreboard, server_group
+      radar_x, radar_y, radar_z, scoreboard, server_group, enabled, auto_reconnect,
+      retry_interval, retry_count, last_error
     ) VALUES (
       @name, @ip, @version, @alt_server, @login, @password, @total_bots, @hours_played,
-      @radar_x, @radar_y, @radar_z, @scoreboard, @server_group
+      @radar_x, @radar_y, @radar_z, @scoreboard, @server_group, @enabled, @auto_reconnect,
+      @retry_interval, @retry_count, @last_error
     )
   `).run(bot);
 
   const created = db.prepare('SELECT * FROM bots WHERE id = ?').get(result.lastInsertRowid);
   created.scoreboard = safeParseScoreboard(created.scoreboard);
+  created.auto_reconnect = coerceBoolean(created.auto_reconnect, true);
+  created.enabled = coerceBoolean(created.enabled, true);
 
   addLog(`Bot eklendi: ${created.name} (${created.ip})`);
-  botManager.startBot(created);
+  if (coerceBoolean(created.enabled, true)) {
+    botManager.startBot(created);
+  }
 
   res.status(201).json({ bot: created });
 });
@@ -191,10 +237,11 @@ app.patch('/api/bots/:id', (req, res) => {
     radar_y: Number(payload.radar_y ?? payload.radarY ?? row.radar_y ?? 0),
     radar_z: Number(payload.radar_z ?? payload.radarZ ?? row.radar_z ?? 0),
     online: payload.online !== undefined ? Number(payload.online) : row.online,
+    enabled: Number(coerceBoolean(payload.enabled ?? row.enabled, true) ? 1 : 0),
+    auto_reconnect: Number(coerceBoolean(payload.auto_reconnect ?? row.auto_reconnect, true) ? 1 : 0),
+    retry_interval: Number(payload.retry_interval ?? payload.retryInterval ?? row.retry_interval ?? 15),
     server_group: String(payload.server_group ?? payload.serverGroup ?? row.server_group ?? 'Genel'),
-    scoreboard: Array.isArray(payload.scoreboard)
-      ? JSON.stringify(payload.scoreboard)
-      : row.scoreboard,
+    scoreboard: Array.isArray(payload.scoreboard) ? JSON.stringify(payload.scoreboard) : row.scoreboard,
   };
 
   db.prepare(`
@@ -208,6 +255,9 @@ app.patch('/api/bots/:id', (req, res) => {
       total_bots = @total_bots,
       hours_played = @hours_played,
       online = @online,
+      enabled = @enabled,
+      auto_reconnect = @auto_reconnect,
+      retry_interval = @retry_interval,
       last_seen = @last_seen,
       radar_x = @radar_x,
       radar_y = @radar_y,
@@ -219,9 +269,15 @@ app.patch('/api/bots/:id', (req, res) => {
 
   const updated = db.prepare('SELECT * FROM bots WHERE id = ?').get(id);
   updated.scoreboard = safeParseScoreboard(updated.scoreboard);
+  updated.auto_reconnect = coerceBoolean(updated.auto_reconnect, true);
+  updated.enabled = coerceBoolean(updated.enabled, true);
 
   addLog(`Bot güncellendi: ${updated.name}`);
-  botManager.startBot(updated);
+  if (coerceBoolean(updated.enabled, true)) {
+    botManager.startBot(updated);
+  } else {
+    botManager.stopBot(id);
+  }
 
   res.json({ bot: updated });
 });
@@ -234,7 +290,7 @@ app.post('/api/bots/:id/reconnect', (req, res) => {
     return res.status(404).json({ message: 'Bot bulunamadı.' });
   }
 
-  botManager.startBot(bot);
+  botManager.forceReconnect(bot);
   addLog(`Bot yeniden bağlanıyor: ${bot.name}`);
   res.json({ success: true, bot });
 });
@@ -251,6 +307,26 @@ app.post('/api/bots/:id/restart', (req, res) => {
   setTimeout(() => botManager.startBot(bot), 500);
   addLog(`Bot yeniden başlatıldı: ${bot.name}`);
   res.json({ success: true, bot });
+});
+
+app.post('/api/bots/:id/toggle-auto-reconnect', (req, res) => {
+  const id = Number(req.params.id);
+  const bot = db.prepare('SELECT * FROM bots WHERE id = ?').get(id);
+  if (!bot) {
+    return res.status(404).json({ message: 'Bot bulunamadı.' });
+  }
+
+  const enabled = !coerceBoolean(bot.auto_reconnect, true);
+  db.prepare('UPDATE bots SET auto_reconnect = ? WHERE id = ?').run(enabled ? 1 : 0, id);
+  addLog(`Otomatik yeniden bağlanma ${enabled ? 'açıldı' : 'kapandı'}: ${bot.name}`);
+
+  if (!enabled) {
+    botManager.cancelReconnect(id);
+  } else {
+    botManager.startBot({ ...bot, auto_reconnect: enabled });
+  }
+
+  res.json({ success: true, auto_reconnect: enabled });
 });
 
 app.delete('/api/bots/:id', (req, res) => {

@@ -5,6 +5,7 @@ class BotManager {
     this.db = db;
     this.logFn = logFn;
     this.clients = new Map();
+    this.retryTimers = new Map();
     this.tick = null;
     this.startTicker();
   }
@@ -13,26 +14,75 @@ class BotManager {
     if (typeof this.logFn === 'function') this.logFn(message);
   }
 
+  getReconnectStats() {
+    return {
+      count: this.retryTimers.size,
+      ids: [...this.retryTimers.keys()],
+    };
+  }
+
+  getClientsCount() {
+    return this.clients.size;
+  }
+
+  cancelReconnect(botId) {
+    const existing = this.retryTimers.get(botId);
+    if (existing) {
+      clearTimeout(existing);
+      this.retryTimers.delete(botId);
+    }
+  }
+
+  queueReconnect(bot, reason = 'unknown') {
+    if (!bot || !bot.ip) return;
+    const shouldAuto = Number(bot.auto_reconnect ?? 1) === 1;
+    if (!shouldAuto) {
+      this.db.prepare('UPDATE bots SET online = 0, last_error = ?, last_seen = ? WHERE id = ?')
+        .run(String(reason), new Date().toISOString(), bot.id);
+      return;
+    }
+
+    const retrySeconds = Math.max(5, Number(bot.retry_interval || 15));
+    this.cancelReconnect(bot.id);
+
+    const timer = setTimeout(() => {
+      this.retryTimers.delete(bot.id);
+      this.startBot({ ...bot, retry_count: Number(bot.retry_count || 0) + 1 });
+    }, retrySeconds * 1000);
+
+    this.retryTimers.set(bot.id, timer);
+    this.db.prepare('UPDATE bots SET online = 0, last_error = ?, retry_count = retry_count + 1, last_seen = ? WHERE id = ?')
+      .run(String(reason), new Date().toISOString(), bot.id);
+    this.addLog(`Bot otomatik yeniden bağlanacak: ${bot.name} (${retrySeconds}s)`);
+  }
+
+  forceReconnect(bot) {
+    this.cancelReconnect(bot.id);
+    this.startBot({ ...bot, auto_reconnect: 1 });
+  }
+
   startTicker() {
     this.tick = setInterval(() => {
       const bots = this.db.prepare('SELECT * FROM bots').all();
       for (const bot of bots) {
         if (bot.online === 1) {
           const nextHours = Number(bot.hours_played || 0) + 1 / 60;
-          this.db.prepare('UPDATE bots SET hours_played = ?, last_seen = ? WHERE id = ?')
-            .run(nextHours.toFixed(2), new Date().toISOString(), bot.id);
+          this.db.prepare('UPDATE bots SET hours_played = ?, last_seen = ?, last_heartbeat = ? WHERE id = ?')
+            .run(nextHours.toFixed(2), new Date().toISOString(), new Date().toISOString(), bot.id);
         }
       }
     }, 60_000);
   }
 
   startAll() {
-    const bots = this.db.prepare('SELECT * FROM bots').all();
+    const bots = this.db.prepare('SELECT * FROM bots WHERE enabled != 0').all();
     bots.forEach((bot) => this.startBot(bot));
   }
 
   startBot(bot) {
-    if (!bot || !bot.ip) return;
+    if (!bot || !bot.ip || Number(bot.enabled ?? 1) === 0) return;
+
+    this.cancelReconnect(bot.id);
 
     if (this.clients.has(bot.id)) {
       this.stopBot(bot.id);
@@ -54,36 +104,42 @@ class BotManager {
       const client = mc.createClient(clientOptions);
 
       client.on('connect', () => {
-        this.db.prepare('UPDATE bots SET online = 1, last_seen = ? WHERE id = ?')
-          .run(new Date().toISOString(), bot.id);
+        this.db.prepare('UPDATE bots SET online = 1, last_seen = ?, last_heartbeat = ?, last_error = ?, retry_count = 0 WHERE id = ?')
+          .run(new Date().toISOString(), new Date().toISOString(), '', bot.id);
         this.addLog(`Bot bağlandı: ${bot.name} (${bot.ip})`);
       });
 
       client.on('login', () => {
-        this.db.prepare('UPDATE bots SET online = 1, last_seen = ? WHERE id = ?')
-          .run(new Date().toISOString(), bot.id);
+        this.db.prepare('UPDATE bots SET online = 1, last_seen = ?, last_heartbeat = ? WHERE id = ?')
+          .run(new Date().toISOString(), new Date().toISOString(), bot.id);
       });
 
       client.on('error', (err) => {
-        this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
-          .run(new Date().toISOString(), bot.id);
-        this.addLog(`Bot hatası: ${bot.name} - ${err.message || err}`);
+        const message = err && err.message ? err.message : String(err || 'Unknown error');
+        this.db.prepare('UPDATE bots SET online = 0, last_error = ?, last_seen = ? WHERE id = ?')
+          .run(message, new Date().toISOString(), bot.id);
+        this.addLog(`Bot hatası: ${bot.name} - ${message}`);
+        this.queueReconnect(bot, message);
       });
 
       client.on('end', () => {
-        this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
-          .run(new Date().toISOString(), bot.id);
+        this.db.prepare('UPDATE bots SET online = 0, last_error = ?, last_seen = ? WHERE id = ?')
+          .run('Connection ended', new Date().toISOString(), bot.id);
         this.addLog(`Bot bağlantısı kapandı: ${bot.name}`);
+        this.queueReconnect(bot, 'Connection ended');
       });
 
       this.clients.set(bot.id, client);
     } catch (error) {
-      this.addLog(`Bot başlatılamadı: ${bot.name} - ${error.message || error}`);
-      this.db.prepare('UPDATE bots SET online = 0 WHERE id = ?').run(bot.id);
+      const message = error && error.message ? error.message : String(error || 'Unknown error');
+      this.addLog(`Bot başlatılamadı: ${bot.name} - ${message}`);
+      this.db.prepare('UPDATE bots SET online = 0, last_error = ? WHERE id = ?').run(message, bot.id);
+      this.queueReconnect(bot, message);
     }
   }
 
   stopBot(botId) {
+    this.cancelReconnect(botId);
     const client = this.clients.get(botId);
     if (client) {
       try {
@@ -93,6 +149,7 @@ class BotManager {
       }
       this.clients.delete(botId);
     }
+    this.db.prepare('UPDATE bots SET online = 0 WHERE id = ?').run(botId);
   }
 }
 
