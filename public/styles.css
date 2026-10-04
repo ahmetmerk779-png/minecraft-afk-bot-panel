@@ -1,0 +1,216 @@
+const state = {
+  summary: null,
+  bots: [],
+};
+
+const refs = {
+  totalBots: document.getElementById('totalBots'),
+  onlineBots: document.getElementById('onlineBots'),
+  totalHours: document.getElementById('totalHours'),
+  serverCount: document.getElementById('serverCount'),
+  summaryGrid: document.getElementById('summaryGrid'),
+  botTableBody: document.getElementById('botTableBody'),
+  botGrid: document.getElementById('botGrid'),
+  openFormBtn: document.getElementById('openFormBtn'),
+  closeModalBtn: document.getElementById('closeModalBtn'),
+  cancelBtn: document.getElementById('cancelBtn'),
+  botModal: document.getElementById('botModal'),
+  botForm: document.getElementById('botForm'),
+};
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'İşlem başarısız.');
+  }
+
+  return response.json();
+}
+
+function formatHours(value) {
+  const num = Number(value || 0);
+  return `${num.toFixed(1)} saat`;
+}
+
+function renderSummary(summary) {
+  refs.totalBots.textContent = summary.totalBots;
+  refs.onlineBots.textContent = summary.onlineBots;
+  refs.totalHours.textContent = `${Number(summary.totalHours || 0).toFixed(1)}h`;
+  refs.serverCount.textContent = summary.uniqueServers;
+
+  refs.summaryGrid.innerHTML = `
+    <div class="stat-tile">
+      <span>Toplam Bot</span>
+      <strong>${summary.totalBots}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Çevrimiçi</span>
+      <strong>${summary.onlineBots}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Toplam Saat</span>
+      <strong>${Number(summary.totalHours || 0).toFixed(1)}</strong>
+    </div>
+    <div class="stat-tile">
+      <span>Toplam Bağlantı</span>
+      <strong>${summary.totalConnections || 0}</strong>
+    </div>
+  `;
+}
+
+function renderBotsTable(bots) {
+  refs.botTableBody.innerHTML = bots.length ? bots.map((bot) => `
+    <tr>
+      <td>${bot.name}</td>
+      <td>${bot.ip}</td>
+      <td>${bot.version || '1.20.4'}</td>
+      <td>${bot.alt_server || bot.altServer || '-'}</td>
+      <td>${bot.server_group || 'Genel'}</td>
+      <td>${bot.login || '-'}</td>
+      <td>${bot.total_bots || bot.totalBots || 1}</td>
+      <td>${formatHours(bot.hours_played || bot.hoursPlayed || 0)}</td>
+      <td>
+        <span class="status-tag ${bot.online ? 'online' : 'offline'}">
+          <span class="status-dot"></span>
+          ${bot.online ? 'Çevrimiçi' : 'Offline'}
+        </span>
+      </td>
+      <td>
+        <button class="action-button delete" data-delete-id="${bot.id}">Sil</button>
+      </td>
+    </tr>
+  `).join('') : `
+    <tr><td colspan="10">Henüz bot eklenmemiş.</td></tr>
+  `;
+
+  document.querySelectorAll('[data-delete-id]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = Number(button.dataset.deleteId);
+      await fetchJson(`/api/bots/${id}`, { method: 'DELETE' });
+      await loadDashboard();
+    });
+  });
+}
+
+function renderBotCards(bots) {
+  refs.botGrid.innerHTML = bots.map((bot) => {
+    const scoreboard = Array.isArray(bot.scoreboard) ? bot.scoreboard : [];
+    const radarX = Number(bot.radar_x ?? bot.radarX ?? 0);
+    const radarZ = Number(bot.radar_z ?? bot.radarZ ?? 0);
+
+    return `
+      <article class="bot-card">
+        <div class="bot-header">
+          <div>
+            <div class="bot-name">${bot.name}</div>
+            <div class="bot-subtitle">${bot.server_group || 'Genel'} • ${bot.alt_server || bot.altServer || 'Alt sunucu yok'}</div>
+          </div>
+          <span class="status-tag ${bot.online ? 'online' : 'offline'}">
+            <span class="status-dot"></span>
+            ${bot.online ? 'Online' : 'Offline'}
+          </span>
+        </div>
+
+        <div class="bot-meta">
+          <div class="meta-box">
+            <span>Sunucu</span>
+            <strong>${bot.ip}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Versiyon</span>
+            <strong>${bot.version || '1.20.4'}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Login</span>
+            <strong>${bot.login || '-'}</strong>
+          </div>
+          <div class="meta-box">
+            <span>Oynama</span>
+            <strong>${formatHours(bot.hours_played || bot.hoursPlayed || 0)}</strong>
+          </div>
+        </div>
+
+        <div class="radar-box">
+          <div class="section-title">Radar</div>
+          <div class="radar">
+            <span class="radar-dot" style="left: ${Math.max(10, Math.min(90, 50 + radarX / 3))}%; top: ${Math.max(10, Math.min(90, 50 + radarZ / 3))}%"></span>
+          </div>
+        </div>
+
+        <div class="scoreboard">
+          <div class="section-title">Scoreboard</div>
+          <div class="scoreboard-list">
+            ${(scoreboard.length ? scoreboard : [
+              { label: 'Kilit', value: '0' },
+              { label: 'Can', value: '20/20' },
+              { label: 'Para', value: '0' }
+            ]).map((item) => `
+              <div class="scoreboard-item">
+                <span>${item.label}</span>
+                <strong>${item.value}</strong>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+async function loadDashboard() {
+  const [summaryRes, botsRes] = await Promise.all([
+    fetchJson('/api/summary'),
+    fetchJson('/api/bots'),
+  ]);
+
+  state.summary = summaryRes;
+  state.bots = botsRes.bots || [];
+
+  renderSummary(state.summary);
+  renderBotsTable(state.bots);
+  renderBotCards(state.bots);
+}
+
+function openDialog() {
+  refs.botModal.classList.remove('hidden');
+}
+
+function closeDialog() {
+  refs.botModal.classList.add('hidden');
+  refs.botForm.reset();
+  refs.botForm.elements.version.value = '1.20.4';
+  refs.botForm.elements.total_bots.value = 1;
+  refs.botForm.elements.hours_played.value = 0;
+}
+
+refs.openFormBtn.addEventListener('click', openDialog);
+refs.closeModalBtn.addEventListener('click', closeDialog);
+refs.cancelBtn.addEventListener('click', closeDialog);
+refs.botModal.addEventListener('click', (event) => {
+  if (event.target === refs.botModal) closeDialog();
+});
+
+refs.botForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formData = new FormData(refs.botForm);
+  const payload = Object.fromEntries(formData.entries());
+
+  payload.total_bots = Number(payload.total_bots || 1);
+  payload.hours_played = Number(payload.hours_played || 0);
+
+  await fetchJson('/api/bots', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  closeDialog();
+  await loadDashboard();
+});
+
+loadDashboard();
+setInterval(loadDashboard, 30000);

@@ -1,0 +1,61 @@
+# Minecraft AFK Bot Panel
+
+Çoklu Minecraft AFK bot yönetimi için web tabanlı kontrol paneli.
+
+## Özellikler
+
+- Her bot için ayrı sunucu bilgisi
+- IP, versiyon, isim, alt sunucu, grup, login, şifre
+- Toplam bot sayısı ve toplam saat takibi
+- Çevrimiçi/offline durumu
+- Radar ve scoreboard görünümü
+- Modern web dashboard
+- SQLite veritabanı ile veri depolama
+- Kullanılabilir REST API
+
+## Kurulum
+
+```bash
+npm install
+npm start
+```
+
+Ardından tarayıcıdan açın:
+
+```text
+http://localhost:3000
+```
+
+## API örnekleri
+
+Bot ekleme:
+
+```bash
+curl -X POST http://localhost:3000/api/bots \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Bot-01",
+    "ip": "play.example.com:25565",
+    "version": "1.20.4",
+    "alt_server": "Lobby",
+    "server_group": "Public",
+    "login": "botuser",
+    "password": "secret",
+    "total_bots": 2,
+    "hours_played": 12.5,
+    "scoreboard": [
+      { "label": "Kilit", "value": "0" },
+      { "label": "Can", "value": "20/20" }
+    ]
+  }'
+```
+
+Bot listesi:
+
+```bash
+curl http://localhost:3000/api/bots
+```
+
+## Not
+
+Bu örnek, `minecraft-protocol` ile bağlantı denemesi yapar. Gerçek bağlanma için sunucu erişimi, sürüm uyumu ve gerekli kullanıcı bilgileri gerektirir.

@@ -1,0 +1,92 @@
+const mc = require('minecraft-protocol');
+
+class BotManager {
+  constructor(db) {
+    this.db = db;
+    this.clients = new Map();
+    this.tick = null;
+    this.startTicker();
+  }
+
+  startTicker() {
+    this.tick = setInterval(() => {
+      const bots = this.db.prepare('SELECT * FROM bots').all();
+      for (const bot of bots) {
+        if (bot.online === 1) {
+          const nextHours = Number(bot.hours_played || 0) + 1 / 60;
+          this.db.prepare('UPDATE bots SET hours_played = ?, last_seen = ? WHERE id = ?')
+            .run(nextHours.toFixed(2), new Date().toISOString(), bot.id);
+        }
+      }
+    }, 60_000);
+  }
+
+  startAll() {
+    const bots = this.db.prepare('SELECT * FROM bots').all();
+    bots.forEach((bot) => this.startBot(bot));
+  }
+
+  startBot(bot) {
+    if (!bot || !bot.ip) return;
+
+    if (this.clients.has(bot.id)) {
+      this.stopBot(bot.id);
+    }
+
+    const hostPort = String(bot.ip).trim();
+    const [host, portStr] = hostPort.split(':');
+
+    const clientOptions = {
+      host: host || '127.0.0.1',
+      port: Number(portStr || 25565),
+      username: bot.login || `Bot-${bot.id}`,
+      password: bot.password || undefined,
+      version: bot.version || '1.20.4',
+      auth: 'mojang',
+    };
+
+    try {
+      const client = mc.createClient(clientOptions);
+
+      client.on('connect', () => {
+        this.db.prepare('UPDATE bots SET online = 1, last_seen = ? WHERE id = ?')
+          .run(new Date().toISOString(), bot.id);
+      });
+
+      client.on('login', () => {
+        this.db.prepare('UPDATE bots SET online = 1, last_seen = ? WHERE id = ?')
+          .run(new Date().toISOString(), bot.id);
+      });
+
+      client.on('error', (err) => {
+        this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
+          .run(new Date().toISOString(), bot.id);
+        console.error(`[BOT:${bot.name}] Hata: ${err.message || err}`);
+      });
+
+      client.on('end', () => {
+        this.db.prepare('UPDATE bots SET online = 0, last_seen = ? WHERE id = ?')
+          .run(new Date().toISOString(), bot.id);
+      });
+
+      this.clients.set(bot.id, client);
+    } catch (error) {
+      console.error(`[BOT:${bot.name}] Başlatılamadı: ${error.message || error}`);
+      this.db.prepare('UPDATE bots SET online = 0 WHERE id = ?').run(bot.id);
+    }
+  }
+
+  stopBot(botId) {
+    const client = this.clients.get(botId);
+    if (client) {
+      try {
+        client.end('Manual disconnect');
+      } catch (error) {
+        console.warn('Client kapatılırken hata oluştu', error);
+      }
+      this.clients.delete(botId);
+    }
+  }
+}
+
+module.exports = { BotManager };
