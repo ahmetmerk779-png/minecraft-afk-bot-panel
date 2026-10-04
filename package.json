@@ -3,14 +3,17 @@
   "version": "1.0.0",
   "description": "Minecraft AFK Bot Panel - Çoklu bot yönetimi, sunucu konfigürasyonu ve istatistikler",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.18.0 <21"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^11.9.1",
     "express": "^4.21.2",
-    "minecraft-protocol": "^1.0.0"
+    "minecraft-protocol": "^1.51.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.16"
